@@ -31,7 +31,6 @@ namespace WindowsServiceZamtest
         internal bool state;
         internal string msgReceiveSignalR, strJson;
         internal string pathJson = @"C:\Leak Tester\stationInfo.json";
-        internal string eolID = "3FC5A2D3-C825-452D-84CC-0511EE988159";
         WMIHelper wmi;
         Crypter crypter;
         internal string cryptKey = "Crypter1";
@@ -61,7 +60,7 @@ namespace WindowsServiceZamtest
             if (LogUser().Result)
             {
                 myHubProxy.Invoke("RegisterStation", DeserializeFileToString());
-                //RecieveMQ();
+                ReceiveMQ();
             }
         }
 
@@ -147,7 +146,7 @@ namespace WindowsServiceZamtest
                 hubConnection = new HubConnection(hubUrl); //("https://developear.net/signalr/hubs"); //("http://localhost:8089/");
                 hubConnection.CookieContainer = handler.CookieContainer;
                 myHubProxy = hubConnection.CreateHubProxy("MainHub");
-                myHubProxy.On<string, string>("fetchCommand", (stationId, command) =>  ParseCommand(stationId, command)) ;
+                myHubProxy.On<string, string>("fetchCommand", (senderId, command) =>  ParseCommand(senderId, command)) ;
                 myHubProxy.On<string, string>("displayMessage", (name, message) => Console.Write("SignalR Message: " + name + ": " + message + "\n"));
                 myHubProxy.On<string>("keepAlive", (connectionId) => KeepAliveAck(connectionId));
                 await hubConnection.Start();
@@ -176,43 +175,45 @@ namespace WindowsServiceZamtest
                 return typeMQ = MessageQueue.Create(@".\Private$\" + name);
         }
 
-        private void ParseCommand(string stationid, string command)
+        private void ParseCommand(string senderId, string command)
         {
-            if (stationid == eolID)
+            switch (command)
             {
-                switch (command)
-                {
-                    case "StartTest":
-                        Console.WriteLine("Start recibido de aplicacion Web");
-                        EnqueueMessage("StartTest");
-                        if(messageSend.Peek() == null)
-                        {
-                            msgReceiveSignalR = string.Empty;
-                            break;
-                        }
-                        else
-                        {
-                            error = new Error();
-                            error.Description = error.keyValues[1];
-                            error.Code = error.keyValues.Keys.ElementAt(0);
-                            json = JsonConvert.SerializeObject(error, Formatting.Indented);
-                            myHubProxy.Invoke("StartTest", "NOK", json); 
-                            msgReceiveSignalR = string.Empty;
-                            break;
-                        }
-                    case "StopTest":
-                        Console.WriteLine("Stop recibido de aplicacion Web");
-                        EnqueueMessage("StopTest");
+                case "StartTest":
+                    Console.WriteLine("Start recibido de aplicacion Web");
+                    EnqueueMessage("StartTest");
+                    if (messageSend.Peek() == null)
+                    {
                         msgReceiveSignalR = string.Empty;
                         break;
-                    case "ReceiveStep":
-                        Console.WriteLine("'Receive Step' recibido de aplicacion Web");
-                        EnqueueMessage("ReceiveStep");
+                    }
+                    else
+                    {
+                        error = new Error();
+                        error.Description = error.keyValues[1];
+                        error.Code = error.keyValues.Keys.ElementAt(0);
+                        json = JsonConvert.SerializeObject(error, Formatting.Indented);
+                        myHubProxy.Invoke("StartTest", "NOK", json);
                         msgReceiveSignalR = string.Empty;
                         break;
-                    default:
-                        break;
-                }
+                    }
+                case "StopTest":
+                    Console.WriteLine("Stop recibido de aplicacion Web");
+                    EnqueueMessage("StopTest");
+                    msgReceiveSignalR = string.Empty;
+                    break;
+                case "StartStepsTransmission":
+                    Console.WriteLine("StartStepsTransmission recibido de aplicacion Web");
+                    EnqueueMessage("StartStepsTransmission");
+                    msgReceiveSignalR = string.Empty;
+                    break;
+                case "StopStepsTransmission":
+                    Console.WriteLine("StopStepsTransmission recibido de aplicacion Web");
+                    EnqueueMessage("StopStepsTransmission");
+                    msgReceiveSignalR = string.Empty;
+                    break;
+                default:
+                    break;
             }
         }
 
@@ -235,7 +236,7 @@ namespace WindowsServiceZamtest
             msgRec = messageReceived.Receive();
             msgRec.Formatter = new XmlMessageFormatter(new string[] { "System.String,mscorlib" });
             //Console.WriteLine($"Mensaje del Secuenciador: {0}", msgRec.Body);
-            mQResponse = JsonConvert.DeserializeObject<MQResponse>(msgRec.ToString());
+            mQResponse = JsonConvert.DeserializeObject<MQResponse>(msgRec.Body.ToString());
             mqClass = new MQResponse();
             switch (mQResponse.Command)
             {
@@ -247,18 +248,23 @@ namespace WindowsServiceZamtest
                     {
                         break;
                     }
-                case "StartReceiveTest":
+                case "StartStepsTransmission":
                     {
+                        json = JsonConvert.SerializeObject(mQResponse.Command, Formatting.Indented);
+                        myHubProxy.Invoke("StartStepsTransmissionAck", json);
                         break;
                     }
-                case "StopReceiveTest":
+                case "StopStepsTransmission":
                     {
+                        json = JsonConvert.SerializeObject(mQResponse.Command, Formatting.Indented);
+                        myHubProxy.Invoke("StopStepsTransmissionAck", json);
                         break;
                     }
                 case "Step":
                     {
+                        Console.WriteLine("Step Recieve OK");
                         json = JsonConvert.SerializeObject(mQResponse.Step, Formatting.Indented);
-                        myHubProxy.Invoke("???", json);
+                        myHubProxy.Invoke("StepResult", json);
                         break;
                     }
                 default:

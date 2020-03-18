@@ -12,8 +12,8 @@ namespace WindowsServiceZamtest.Classes
         {
             { 1, "StartTest" },
             { 2, "StopTest" },
-            { 3, "StartReceiveTest" },
-            { 4, "StopReceiveTest" },
+            { 3, "StartStepsTransmission" },
+            { 4, "StopStepsTransmission" },
             { 5, "Test" }
         };
 
