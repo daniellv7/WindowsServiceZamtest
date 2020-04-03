@@ -1,7 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Diagnostics;
 using System.Linq;
 using System.ServiceProcess;
@@ -114,7 +111,7 @@ namespace WindowsServiceZamtest
                 var response = await httpClient.GetAsync(loginUrl);
                 var content = await response.Content.ReadAsStringAsync();
                 var requestVerificationToken = ParseRequestVerificationToken(content);
-                content = requestVerificationToken + "&Email=" + stationInfo.UserAccount + "&Password=" + stationInfo.UserPassword + "&RememberMe=False";
+                content = requestVerificationToken + "&Email=" + stationInfo.UserAccount + "&Password=" + "!Q2w3e4r" + "&RememberMe=False";
                 response = await httpClient.PostAsync(loginUrl, new StringContent(content, Encoding.UTF8, "application/x-www-form-urlencoded"));
                 content = await response.Content.ReadAsStringAsync();
                 await ConnectHub();
@@ -262,7 +259,7 @@ namespace WindowsServiceZamtest
                     }
                 case "Step":
                     {
-                        Console.WriteLine("Step Recieve OK");
+                        Console.WriteLine("Step Receive OK");
                         json = JsonConvert.SerializeObject(mQResponse.Step, Formatting.Indented);
                         myHubProxy.Invoke("StepResult", json);
                         break;
@@ -331,11 +328,17 @@ namespace WindowsServiceZamtest
             {
                 Client = "Lear",
                 UserAccount = "daniel.larios@zamtest.com",
-                UserPassword = "!Q2w3e4r",
-                HardDiskSerialNumber = wmi.GetHardDriveVolumeSerialNumber(),
-                ProcessorID = wmi.GetProcessorID(),
-                OperatingSystem = wmi.GetOperatingSystem()
+                OperatingSystem = wmi.GetOperatingSystem(),
+                StationKey = wmi.GetProcessorID() + wmi.GetHardDriveVolumeSerialNumber(),
+                Sockets = 3
             };
+            //StationInfo stationInfo = new StationInfo
+            //{
+            //    Client = "Lear",
+            //    UserAccount = "daniel.larios@zamtest.com",
+            //    OperatingSystem = wmi.GetOperatingSystem(),
+            //    Sockets = "3"
+            //};
             return stationInfo;
         }
 
